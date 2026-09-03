@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <title>ExoShadow | ShadowEngine Twin</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            background-color: #020617;
+            color: #e2e8f0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow-x: hidden;
+        }
+
+        .card {
+            background-color: #0f172a;
+            border: 1px solid #1e293b;
+            color: white;
+            margin-bottom: 1rem;
+        }
+
+        .status-ok {
+            color: #10b981;
+        }
+
+        .status-warn {
+            color: #f59e0b;
+        }
+
+        .status-crit {
+            color: #ef4444;
+        }
+
+        #log {
+            height: 120px;
+            overflow-y: auto;
+            background: #000;
+            padding: 10px;
+            border-radius: 5px;
+            color: #38bdf8;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+            border: 1px solid #1e293b;
+        }
+
+        .servo-label {
+            font-size: 0.7rem;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .val-big {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .unit {
+            font-size: 0.8rem;
+            color: #64748b;
+            margin-left: 4px;
+        }
+
+        #skeleton-svg {
+            filter: drop-shadow(0 0 10px rgba(56, 189, 248, 0.2));
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container-fluid py-3">
+        <!-- HEADER -->
+        <header class="d-flex justify-content-between align-items-center mb-3 border-bottom border-secondary pb-3">
+            <div>
+                <h3 class="text-info mb-0 font-monospace">SHADOW-ENGINE <span class="text-white">TWIN v2.7</span></h3>
+                <small class="text-muted">SYSTEM STATUS: OPERATIONAL</small>
+            </div>
+            
+            <!-- СТАБИЛЬНОСТЬ -->
+            <div class="card bg-black p-2 border-secondary d-flex flex-row align-items-center" style="min-width: 250px;">
+                <div class="me-3 small text-muted font-monospace">STABILITY</div>
+                <div id="tilt-indicator" style="flex-grow: 1; height: 10px; background: #1e293b; position: relative; border-radius: 5px;">
+                    <div id="tilt-cursor" style="width: 10px; height: 10px; background: #0ea5e9; position: absolute; left: 50%; border-radius: 50%; box-shadow: 0 0 8px #0ea5e9;"></div>
+                </div>
+                <div id="tilt-val" class="ms-3 text-info font-monospace fw-bold">0°</div>
+            </div>
+
+            <div class="text-end">
+                <div id="pwr-total" class="h4 text-warning mb-0 font-monospace">0.0 W</div>
+                <small class="text-muted">TOTAL POWER</small>
+            </div>
+        </header>
+
+        <div class="row g-3">
+            <!-- ЛЕВАЯ КОЛОНКА: ПИТАНИЕ + ВСЕ НОГИ -->
+            <div class="col-md-3">
+                <!-- БАТАРЕЯ -->
+                <div class="card p-2 shadow border-primary bg-black mb-2">
+                    <div class="d-flex justify-content-between align-items-center px-1">
+                        <small class="servo-label text-primary">BATTERY 6S</small>
+                        <small id="bat-volts" class="text-muted font-monospace">--V</small>
+                    </div>
+                    <div class="d-flex align-items-center mt-1">
+                        <div id="bat-pct" class="h4 fw-bold text-primary mb-0 me-2" style="min-width: 50px;">--%</div>
+                        <div class="progress flex-grow-1 bg-dark" style="height: 8px;">
+                            <div id="bat-bar" class="progress-bar bg-primary" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- МОНИТОРИНГ ОСЕЙ (ОБЕ НОГИ) -->
+                <div class="card p-3 shadow border-secondary bg-black">
+                    <h6 class="servo-label text-info mb-3">AXIS MONITORING (L/R)</h6>
+                    
+                    <!-- LEFT LEG -->
+                    <div class="mb-3 border-start border-info border-3 ps-2">
+                        <div class="d-flex justify-content-between x-small mb-1">
+                            <span class="text-info small fw-bold">L-HIP</span><span id="txt-temp-0" class="small">--°C</span>
+                        </div>
+                        <div class="progress bg-dark mb-2" style="height: 4px;"><div id="bar-curr-0" class="progress-bar bg-info" style="width: 0%"></div></div>
+                        
+                        <div class="d-flex justify-content-between x-small mb-1">
+                            <span class="text-info small fw-bold">L-KNEE</span><span id="txt-temp-1" class="small">--°C</span>
+                        </div>
+                        <div class="progress bg-dark mb-2" style="height: 4px;"><div id="bar-curr-1" class="progress-bar bg-info" style="width: 0%"></div></div>
+                        <div id="phase-l" class="badge w-100 bg-info text-dark mt-1" style="font-size: 0.65rem;">IDLE</div>
+                    </div>
+
+                    <!-- RIGHT LEG -->
+                    <div class="mb-2 border-start border-warning border-3 ps-2">
+                        <div class="d-flex justify-content-between x-small mb-1">
+                            <span class="text-warning small fw-bold">R-HIP</span><span id="txt-temp-2" class="small">--°C</span>
+                        </div>
+                        <div class="progress bg-dark mb-2" style="height: 4px;"><div id="bar-curr-2" class="progress-bar bg-warning" style="width: 0%"></div></div>
+                        
+                        <div class="d-flex justify-content-between x-small mb-1">
+                            <span class="text-warning small fw-bold">R-KNEE</span><span id="txt-temp-3" class="small">--°C</span>
+                        </div>
+                        <div class="progress bg-dark mb-2" style="height: 4px;"><div id="bar-curr-3" class="progress-bar bg-warning" style="width: 0%"></div></div>
+                        <div id="phase-r" class="badge w-100 bg-warning text-dark mt-1" style="font-size: 0.65rem;">IDLE</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ЦЕНТР: СКЕЛЕТ -->
+            <div class="col-md-5">
+                <div class="card p-2 shadow bg-black border-secondary h-100 d-flex flex-column">
+                    <h6 class="servo-label p-2 text-muted">KINEMATIC MODEL</h6>
+                    <div class="flex-grow-1 d-flex align-items-center justify-content-center">
+                        <svg id="skeleton-svg" viewBox="0 0 200 200" width="100%" height="400">
+                            <line x1="75" y1="50" x2="125" y2="50" stroke="#475569" stroke-width="4" stroke-linecap="round"/>
+                            <line id="l-thigh" x1="85" y1="50" x2="85" y2="100" stroke="#0ea5e9" stroke-width="8" stroke-linecap="round"/>
+                            <line id="l-shin" x1="85" y1="100" x2="85" y2="150" stroke="#38bdf8" stroke-width="6" stroke-linecap="round"/>
+                            <line id="r-thigh" x1="115" y1="50" x2="115" y2="100" stroke="#f59e0b" stroke-width="8" stroke-linecap="round"/>
+                            <line id="r-shin" x1="115" y1="100" x2="115" y2="150" stroke="#fbbf24" stroke-width="6" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                    <button id="simulate-btn" class="btn btn-info w-100 py-3 fw-bold font-monospace mt-2" onclick="toggleSimulation()">
+                        START ENGINE TEST
+                    </button>
+                </div>
+            </div>
+
+            <!-- ПРАВАЯ КОЛОНКА: ГРАФИКИ И ЛОГИ -->
+            <div class="col-md-4 text-white">
+                <div class="card p-2 shadow bg-black border-secondary mb-2">
+                    <h6 class="servo-label p-2 text-muted">4-CHANNEL KINEMATICS (DEG)</h6>
+                    <canvas id="mainChart" height="220"></canvas>
+                </div>
+
+                <div class="card p-3 shadow bg-black border-secondary" style="height: 200px;">
+                    <h6 class="servo-label text-muted mb-2">DIAGNOSTIC LOG</h6>
+                    <div id="log" class="font-monospace" style="overflow-y: auto; height: 140px; font-size: 0.75rem;">
+                        <div class="text-muted">> System ready. Awaiting telemetry...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let mainChart, simulationInterval = null, step = 0;
+        let frameBuffer = [];
+
+        // ОБНОВЛЕННЫЕ ГРАФИКИ: ТЕПЕРЬ 4 ЛИНИИ
+        function initCharts() {
+            const opt = { 
+                responsive: true, animation: false, 
+                elements: { point: { radius: 0 } },
+                scales: { 
+                    y: { grid: { color: '#1e293b' }, ticks: { color: '#64748b', font: {size: 9} } },
+                    x: { display: false }
+                },
+                plugins: { legend: { position: 'top', labels: { color: '#94a3b8', boxWidth: 10, font: { size: 10 } } } }
+            };
+            mainChart = new Chart(document.getElementById('mainChart'), {
+                type: 'line',
+                data: { labels: [], datasets: [
+                    { label: 'L-Hip', data: [], borderColor: '#0ea5e9', borderWidth: 1.5, tension: 0.3 },
+                    { label: 'L-Knee', data: [], borderColor: '#38bdf8', borderWidth: 2, borderDash: [4, 2], tension: 0.3 },
+                    { label: 'R-Hip', data: [], borderColor: '#f59e0b', borderWidth: 1.5, tension: 0.3 },
+                    { label: 'R-Knee', data: [], borderColor: '#fbbf24', borderWidth: 2, borderDash: [4, 2], tension: 0.3 }
+                ]}, options: opt
+            });
+        }
+
+        async function toggleSimulation() {
+            const btn = document.getElementById('simulate-btn');
+            if (simulationInterval) {
+                clearInterval(simulationInterval); simulationInterval = null;
+                btn.innerText = "START ENGINE TEST"; btn.className = "btn btn-info w-100 py-3 fw-bold font-monospace";
+            } else {
+                btn.innerText = "STOP ENGINE TEST"; btn.className = "btn btn-danger w-100 py-3 fw-bold font-monospace";
+                startStream();
+            }
+        }
+
+        function startStream() {
+            simulationInterval = setInterval(async () => {
+                let t = step * 0.4;
+                let move = Math.sin(t);
+                
+                // Имитация аномалии раз в 60 шагов
+                let isAnomaly = (step % 60 > 56);
+                let anomVal = isAnomaly ? 50 : 0; 
+
+                let angles = [
+                    move * 15,                          // L-Hip
+                    (move > 0 ? move * 40 : 0),         // L-Knee
+                    -move * 15,                         // R-Hip
+                    (move < 0 ? -move * 40 + anomVal : 0) // R-Knee + Anomaly
+                ];
+
+                const frame = {
+                    timestamp: step,
+                    servos: angles.map((a, i) => ({
+                        angle: a,
+                        current: 0.5 + Math.abs(a/20) + (isAnomaly && i==3 ? 2.5 : 0),
+                        temperature: 36 + Math.random() * 5 + (step * 0.01),
+                        load: 20
+                    })),
+                    heart_rate: 0,
+                    accel_data: {x: Math.sin(t/2)*10, y: 1, z: 0},
+                    gyro_data: {x: 0, y: 0, z: 0},
+                    battery_voltage: 25.2 - (step * 0.008)
+                };
+
+                frameBuffer.push(frame);
+                if(frameBuffer.length > 30) frameBuffer.shift();
+
+                try {
+                    const res = await fetch('/analyze/summary', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ session_id: "TWIN_X", data: frameBuffer })
+                    });
+                    const result = await res.json();
+                    updateUI(frame, result);
+                    step++;
+                } catch (e) { console.error("API error", e); }
+            }, 200);
+        }
+
+        function updateSkeleton(angles) {
+            const getCoords = (x, y, a, l) => {
+                const r = (a + 90) * (Math.PI / 180);
+                return { x: x + l * Math.cos(r), y: y + l * Math.sin(r) };
+            };
+            const lK = getCoords(85, 50, angles[0], 50);
+            const lF = getCoords(lK.x, lK.y, angles[0] - angles[1], 50);
+            document.getElementById('l-thigh').setAttribute('x2', lK.x); document.getElementById('l-thigh').setAttribute('y2', lK.y);
+            document.getElementById('l-shin').setAttribute('x1', lK.x); document.getElementById('l-shin').setAttribute('y1', lK.y);
+            document.getElementById('l-shin').setAttribute('x2', lF.x); document.getElementById('l-shin').setAttribute('y2', lF.y);
+            
+            const rK = getCoords(115, 50, angles[2], 50);
+            const rF = getCoords(rK.x, rK.y, angles[2] - angles[3], 50);
+            document.getElementById('r-thigh').setAttribute('x2', rK.x); document.getElementById('r-thigh').setAttribute('y2', rK.y);
+            document.getElementById('r-shin').setAttribute('x1', rK.x); document.getElementById('r-shin').setAttribute('y1', rK.y);
+            document.getElementById('r-shin').setAttribute('x2', rF.x); document.getElementById('r-shin').setAttribute('y2', rF.y);
+        }
+
+        function updateUI(frame, report) {
+            const stats = report.statistics;
+
+            // 1. ПИТАНИЕ
+            const v = frame.battery_voltage;
+            const pct = Math.max(0, Math.min(100, ((v - 21) / (25.2 - 21)) * 100));
+            document.getElementById('bat-pct').innerText = `${pct.toFixed(0)}%`;
+            document.getElementById('bat-volts').innerText = `${v.toFixed(2)} V`;
+            document.getElementById('bat-bar').style.width = `${pct}%`;
+            document.getElementById('pwr-total').innerText = `${stats.avg_power_watt.toFixed(1)} W`;
+
+            // 2. БАЛАНС
+            const tilt = frame.accel_data.x;
+            document.getElementById('tilt-cursor').style.left = `${50 + (tilt * 3)}%`;
+            document.getElementById('tilt-val').innerText = `${tilt.toFixed(1)}°`;
+
+            // 3. СЕРВОПРИВОДЫ
+            frame.servos.forEach((s, i) => {
+                const tempTxt = document.getElementById(`txt-temp-${i}`);
+                if(tempTxt) {
+                    tempTxt.innerText = `${s.temperature.toFixed(1)}°C`;
+                    tempTxt.className = s.temperature > 45 ? "text-danger fw-bold" : "text-success";
+                }
+                const bar = document.getElementById(`bar-curr-${i}`);
+                if(bar) bar.style.width = `${(s.current / 4) * 100}%`;
+            });
+
+            // 4. ФАЗЫ
+            const phL = document.getElementById('phase-l');
+            const phR = document.getElementById('phase-r');
+            if(frame.servos[1].angle > 5) { phL.innerText = "SWING"; phL.className = "badge w-100 bg-info text-dark mt-1"; }
+            else { phL.innerText = "STANCE"; phL.className = "badge w-100 bg-primary mt-1"; }
+            if(frame.servos[3].angle > 5) { phR.innerText = "SWING"; phR.className = "badge w-100 bg-warning text-dark mt-1"; }
+            else { phR.innerText = "STANCE"; phR.className = "badge w-100 bg-primary mt-1"; }
+
+            // 5. ГРАФИКИ (ВСЕ 4 КАНАЛА)
+            updateSkeleton(frame.servos.map(s => s.angle));
+            mainChart.data.labels.push(step);
+            frame.servos.forEach((s, i) => {
+                mainChart.data.datasets[i].data.push(s.angle);
+            });
+            if(mainChart.data.labels.length > 30) {
+                mainChart.data.labels.shift();
+                mainChart.data.datasets.forEach(d => d.data.shift());
+            }
+            mainChart.update();
+
+            // 6. ЛОГИ
+            if(report.anomalies.length > 0) {
+                const log = document.getElementById('log');
+                report.anomalies.forEach(a => {
+                    log.innerHTML = `<div class="p-1 mb-1 border-start border-danger border-4 bg-danger-subtle text-danger" style="font-size: 0.7rem;">
+                        <strong>[!] ${a.type}</strong>: ${a.description}</div>` + log.innerHTML;
+                });
+            }
+        }
+        window.onload = initCharts;
+    </script>
+</body>
+
+</html>
